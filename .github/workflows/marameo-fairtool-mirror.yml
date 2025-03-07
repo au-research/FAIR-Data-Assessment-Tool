@@ -24,7 +24,8 @@ jobs:
         run: |
           mkdir -p temp
           cd temp
-          git clone https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/marameodesignteam/ardc-new.git
+          # Use x-access-token format which often works better with GitHub Actions
+          git clone https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/marameodesignteam/ardc-new.git
 
       - name: Extract and update FAIR tool components
         run: |
