@@ -20,22 +20,15 @@ jobs:
           git config --global user.name "GitHub Mirror Bot"
           git config --global user.email "noreply@github.com"
 
-      - name: Download source repo using GitHub API
+      - name: Download source repo using direct URL
         run: |
           mkdir -p temp
           cd temp
 
-          # First check access to the repository
-          curl -s -o api_response.json -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
-            https://api.github.com/repos/marameodesignteam/ardc-new
-
-          # Show the response for debugging
-          cat api_response.json
-
-          # Now try to download the zip
+          # Direct download URL format
           curl -v -L -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
             -o repo.zip \
-            https://api.github.com/repos/marameodesignteam/ardc-new/zipball/master
+            https://github.com/marameodesignteam/ardc-new/archive/refs/heads/master.zip
 
           # Check if download was successful
           if [ -f repo.zip ] && [ $(stat -c%s repo.zip) -gt 1000 ]; then
@@ -44,17 +37,8 @@ jobs:
             # Extract the zip file
             unzip -q repo.zip
 
-            # Find the extracted directory (it has a dynamic name with commit hash)
-            EXTRACT_DIR=$(ls -d marameodesignteam-ardc-new-* 2>/dev/null | head -n 1)
-
-            if [ -n "$EXTRACT_DIR" ]; then
-              # Move contents to a predictable name
-              mkdir -p ardc-new
-              mv $EXTRACT_DIR/* ardc-new/
-            else
-              echo "Failed to extract repository or find extracted directory"
-              exit 1
-            fi
+            # Rename the extracted directory
+            mv ardc-new-master ardc-new
           else
             echo "Failed to download repository zip. Checking file content:"
             cat repo.zip
@@ -79,6 +63,7 @@ jobs:
             cp -r temp/ardc-new/wp-content/plugins/mmd-fair-tool wp-content/plugins/
           else
             echo "Plugin directory not found"
+            ls -la temp/ardc-new/wp-content/plugins/ || echo "Plugins directory does not exist"
             exit 1
           fi
 
