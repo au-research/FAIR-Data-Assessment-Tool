@@ -24,22 +24,45 @@ jobs:
         run: |
           mkdir -p temp
           cd temp
-          # Download zip using GitHub API
-          curl -L -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+
+          # First check access to the repository
+          curl -s -o api_response.json -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/marameodesignteam/ardc-new
+
+          # Show the response for debugging
+          cat api_response.json
+
+          # Now try to download the zip
+          curl -v -L -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
             -o repo.zip \
             https://api.github.com/repos/marameodesignteam/ardc-new/zipball/master
 
-          # Extract the zip file
-          unzip -q repo.zip
+          # Check if download was successful
+          if [ -f repo.zip ] && [ $(stat -c%s repo.zip) -gt 1000 ]; then
+            echo "Successfully downloaded repository zip"
 
-          # Find the extracted directory (it has a dynamic name with commit hash)
-          EXTRACT_DIR=$(ls -d marameodesignteam-ardc-new-* | head -n 1)
+            # Extract the zip file
+            unzip -q repo.zip
 
-          # Move contents to a predictable name
-          mkdir -p ardc-new
-          mv $EXTRACT_DIR/* ardc-new/
+            # Find the extracted directory (it has a dynamic name with commit hash)
+            EXTRACT_DIR=$(ls -d marameodesignteam-ardc-new-* 2>/dev/null | head -n 1)
+
+            if [ -n "$EXTRACT_DIR" ]; then
+              # Move contents to a predictable name
+              mkdir -p ardc-new
+              mv $EXTRACT_DIR/* ardc-new/
+            else
+              echo "Failed to extract repository or find extracted directory"
+              exit 1
+            fi
+          else
+            echo "Failed to download repository zip. Checking file content:"
+            cat repo.zip
+            exit 1
+          fi
 
       - name: Extract and update FAIR tool components
+        if: success()
         run: |
           # Remove everything except .git
           find . -mindepth 1 -maxdepth 1 -not -name '.git' -not -name 'temp' -exec rm -rf {} \;
@@ -51,18 +74,23 @@ jobs:
           mkdir -p wp-content/themes/ardc/js
           mkdir -p wp-content/themes/ardc/css
 
-          # Copy plugin files
-          cp -r temp/ardc-new/wp-content/plugins/mmd-fair-tool wp-content/plugins/
+          # Copy plugin files if they exist
+          if [ -d "temp/ardc-new/wp-content/plugins/mmd-fair-tool" ]; then
+            cp -r temp/ardc-new/wp-content/plugins/mmd-fair-tool wp-content/plugins/
+          else
+            echo "Plugin directory not found"
+            exit 1
+          fi
 
           # Copy Gutenberg blocks
-          cp -r temp/ardc-new/wp-content/themes/ardc/gutenberg/blocks/fair-tool* wp-content/themes/ardc/gutenberg/blocks/
+          cp -r temp/ardc-new/wp-content/themes/ardc/gutenberg/blocks/fair-tool* wp-content/themes/ardc/gutenberg/blocks/ || echo "Gutenberg blocks not found"
 
           # Copy template parts
-          cp -r temp/ardc-new/wp-content/themes/ardc/template-parts/blocks/fair-tool* wp-content/themes/ardc/template-parts/blocks/
+          cp -r temp/ardc-new/wp-content/themes/ardc/template-parts/blocks/fair-tool* wp-content/themes/ardc/template-parts/blocks/ || echo "Template parts not found"
 
           # Copy JS and CSS
-          cp temp/ardc-new/wp-content/themes/ardc/js/fair-tool.js wp-content/themes/ardc/js/
-          cp temp/ardc-new/wp-content/themes/ardc/css/fairtool.css* wp-content/themes/ardc/css/ 2>/dev/null || true
+          cp temp/ardc-new/wp-content/themes/ardc/js/fair-tool.js wp-content/themes/ardc/js/ || echo "JS file not found"
+          cp temp/ardc-new/wp-content/themes/ardc/css/fairtool.css* wp-content/themes/ardc/css/ 2>/dev/null || echo "CSS file not found"
 
           # Create README with source information
           echo "# FAIR Tool WordPress Plugin and Theme Components" > README.md
