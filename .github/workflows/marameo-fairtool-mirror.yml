@@ -24,7 +24,7 @@ jobs:
         run: |
           mkdir -p temp
           cd temp
-          git clone --depth 1 https://github.com/marameodesignteam/ardc-new.git
+          git clone https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/marameodesignteam/ardc-new.git
 
       - name: Extract and update FAIR tool components
         run: |
