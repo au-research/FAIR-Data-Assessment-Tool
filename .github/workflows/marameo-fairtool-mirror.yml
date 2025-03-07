@@ -20,12 +20,24 @@ jobs:
           git config --global user.name "GitHub Mirror Bot"
           git config --global user.email "noreply@github.com"
 
-      - name: Clone source repo
+      - name: Download source repo using GitHub API
         run: |
           mkdir -p temp
           cd temp
-          # Use x-access-token format which often works better with GitHub Actions
-          git clone https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/marameodesignteam/ardc-new.git
+          # Download zip using GitHub API
+          curl -L -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            -o repo.zip \
+            https://api.github.com/repos/marameodesignteam/ardc-new/zipball/master
+
+          # Extract the zip file
+          unzip -q repo.zip
+
+          # Find the extracted directory (it has a dynamic name with commit hash)
+          EXTRACT_DIR=$(ls -d marameodesignteam-ardc-new-* | head -n 1)
+
+          # Move contents to a predictable name
+          mkdir -p ardc-new
+          mv $EXTRACT_DIR/* ardc-new/
 
       - name: Extract and update FAIR tool components
         run: |
