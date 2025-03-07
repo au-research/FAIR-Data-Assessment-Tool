@@ -1,0 +1,70 @@
+name: Mirror Marameo FAIR Tool
+
+  on:
+    workflow_dispatch:
+    schedule:
+      - cron: '0 */6 * * *'
+
+  jobs:
+    mirror:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout target repo
+          uses: actions/checkout@v3
+          with:
+            ref: marameo-fairtool
+            fetch-depth: 0
+
+        - name: Set up Git
+          run: |
+            git config --global user.name "GitHub Mirror Bot"
+            git config --global user.email "noreply@github.com"
+
+        - name: Clone source repo
+          run: |
+            mkdir -p temp
+            cd temp
+            git clone --depth 1 https://github.com/marameodesignteam/ardc-new.git
+
+        - name: Extract and update FAIR tool components
+          run: |
+            # Remove everything except .git
+            find . -mindepth 1 -maxdepth 1 -not -name '.git' -not -name 'temp' -exec rm -rf {} \;
+
+            # Create directory structure and copy files
+            mkdir -p wp-content/plugins
+            mkdir -p wp-content/themes/ardc/gutenberg/blocks
+            mkdir -p wp-content/themes/ardc/template-parts/blocks
+            mkdir -p wp-content/themes/ardc/js
+            mkdir -p wp-content/themes/ardc/css
+
+            # Copy plugin files
+            cp -r temp/ardc-new/wp-content/plugins/mmd-fair-tool wp-content/plugins/
+
+            # Copy Gutenberg blocks
+            cp -r temp/ardc-new/wp-content/themes/ardc/gutenberg/blocks/fair-tool* wp-content/themes/ardc/gutenberg/blocks/
+
+            # Copy template parts
+            cp -r temp/ardc-new/wp-content/themes/ardc/template-parts/blocks/fair-tool* wp-content/themes/ardc/template-parts/blocks/
+
+            # Copy JS and CSS
+            cp temp/ardc-new/wp-content/themes/ardc/js/fair-tool.js wp-content/themes/ardc/js/
+            cp temp/ardc-new/wp-content/themes/ardc/css/fairtool.css* wp-content/themes/ardc/css/ 2>/dev/null || true
+
+            # Create README with source information
+            echo "# FAIR Tool WordPress Plugin and Theme Components" > README.md
+            echo "" >> README.md
+            echo "This branch contains FAIR Tool components extracted from the [Marameo ARDC site repository](https://github.com/marameodesignteam/ardc-new)." >> README.md
+            echo "" >> README.md
+            echo "Last updated: $(date)" >> README.md
+            echo "" >> README.md
+            echo "## Structure" >> README.md
+            echo "- Plugin code: \`wp-content/plugins/mmd-fair-tool/\`" >> README.md
+            echo "- Theme components: \`wp-content/themes/ardc/\`" >> README.md
+
+            # Commit changes if any
+            git add -A
+            git diff --staged --quiet || git commit -m "Update FAIR Tool components from marameo repository $(date -u)"
+
+            # Push to branch
+            git push
